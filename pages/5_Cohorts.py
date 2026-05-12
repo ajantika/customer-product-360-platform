@@ -3,8 +3,6 @@ import streamlit as st
 
 from lib import data, metrics, theme
 
-st.set_page_config(page_title="Cohorts", page_icon="🎯", layout="wide")
-theme.apply()
 
 d = data.load_all()
 customers, usage = d["customers"], d["usage"]

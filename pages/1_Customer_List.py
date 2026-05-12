@@ -3,8 +3,6 @@ import streamlit as st
 
 from lib import data, theme
 
-st.set_page_config(page_title="Customer List", page_icon="👥", layout="wide")
-theme.apply()
 
 d = data.load_all()
 customers = d["customers"].copy()

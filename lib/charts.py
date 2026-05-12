@@ -68,9 +68,28 @@ def horizontal_adoption(df: pd.DataFrame, title: str = "Top products by adoption
     return _style(fig, height=320)
 
 
-def utilization_distribution(values: list[float], title: str = "Customer utilization distribution") -> go.Figure:
-    fig = go.Figure(go.Histogram(x=values, nbinsx=30, marker_color=PRIMARY))
-    fig.add_vline(x=50, line_dash="dash", line_color=UNDER, opacity=0.6)
-    fig.add_vline(x=100, line_dash="dash", line_color=OVER, opacity=0.6)
-    fig.update_layout(title=title, xaxis_title="Avg utilization %", yaxis_title="customers")
-    return _style(fig, height=300)
+def utilization_segments(values: list[float]) -> go.Figure:
+    """Clear 3-segment bar: how many customers are over / healthy / under plan."""
+    over = sum(1 for v in values if v > 100)
+    healthy = sum(1 for v in values if 50 <= v <= 100)
+    under = sum(1 for v in values if v < 50)
+    total = len(values) or 1
+    labels = ["Over-utilized\n(>100% of plan)", "Healthy\n(50–100%)", "Under-utilized\n(<50% of plan)"]
+    counts = [over, healthy, under]
+    colors = [OVER, HEALTHY, UNDER]
+    pcts = [f"{c} customers ({100*c/total:.0f}%)" for c in counts]
+    fig = go.Figure(go.Bar(
+        x=labels, y=counts, marker_color=colors,
+        text=pcts, textposition="outside",
+    ))
+    fig.update_layout(
+        title="Customer segmentation by plan utilization",
+        yaxis_title="Customers", xaxis_title=None,
+        annotations=[dict(
+            text="<b>Over-utilized</b> = upsell opportunity · <b>Under-utilized</b> = churn risk",
+            xref="paper", yref="paper", x=0.5, y=-0.18,
+            showarrow=False, font=dict(size=11, color="#94a3b8"),
+        )],
+        margin=dict(l=10, r=10, t=40, b=60),
+    )
+    return _style(fig, height=340)

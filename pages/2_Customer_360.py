@@ -4,8 +4,6 @@ import streamlit as st
 
 from lib import charts, data, llm, metrics, theme
 
-st.set_page_config(page_title="Customer 360", page_icon="🪪", layout="wide")
-theme.apply()
 
 d = data.load_all()
 customers, products, subs, usage = d["customers"], d["products"], d["subscriptions"], d["usage"]
