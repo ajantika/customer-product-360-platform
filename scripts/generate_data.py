@@ -63,15 +63,18 @@ BASE_TO_PRICING = {
 }
 
 PRODUCTS = [
-    {"product_id": "P01", "name": "API Gateway",    "category": "Compute",  "unit": "api_calls_M",    "list_price_per_unit": 0.40},
-    {"product_id": "P02", "name": "Object Storage", "category": "Storage",  "unit": "GB",             "list_price_per_unit": 0.023},
-    {"product_id": "P03", "name": "CDN",            "category": "Network",  "unit": "GB_egress",      "list_price_per_unit": 0.085},
-    {"product_id": "P04", "name": "Compute",        "category": "Compute",  "unit": "vcpu_hours",     "list_price_per_unit": 0.048},
-    {"product_id": "P05", "name": "Analytics",      "category": "Data",     "unit": "events_M",       "list_price_per_unit": 1.20},
-    {"product_id": "P06", "name": "Identity",       "category": "Security", "unit": "MAU_K",          "list_price_per_unit": 5.00},
-    {"product_id": "P07", "name": "Workflow",       "category": "Platform", "unit": "runs_K",         "list_price_per_unit": 0.15},
-    {"product_id": "P08", "name": "Edge Functions", "category": "Compute",  "unit": "invocations_M",  "list_price_per_unit": 0.20},
+    {"product_id": "P01", "name": "API Gateway",    "category": "Compute",  "unit": "M Requests",    "list_price_per_unit": 0.40},
+    {"product_id": "P02", "name": "Object Storage", "category": "Storage",  "unit": "TB",            "list_price_per_unit": 23.00},
+    {"product_id": "P03", "name": "CDN",            "category": "Network",  "unit": "TB Egress",     "list_price_per_unit": 87.00},
+    {"product_id": "P04", "name": "Compute",        "category": "Compute",  "unit": "Core-hrs",      "list_price_per_unit": 0.048},
+    {"product_id": "P05", "name": "Analytics",      "category": "Data",     "unit": "M Events",      "list_price_per_unit": 1.20},
+    {"product_id": "P06", "name": "Identity",       "category": "Security", "unit": "K Users",       "list_price_per_unit": 5.00},
+    {"product_id": "P07", "name": "Workflow",       "category": "Platform", "unit": "K Runs",        "list_price_per_unit": 0.15},
+    {"product_id": "P08", "name": "Edge Functions", "category": "Compute",  "unit": "M Invocations", "list_price_per_unit": 0.20},
 ]
+
+# Global customers who have usage across all 10 pricing regions
+ALL_REGION_CUSTOMERS = {"OpenAI", "Lumen AI", "Cobalt Cloud"}
 
 FEATURE_CUSTOMERS = [
     "OpenAI", "NorthWind Labs", "Acme Robotics", "Quantum Health", "Aurora Streaming",
@@ -138,19 +141,24 @@ def generate_customers(rng: np.random.Generator, fake: Faker) -> pd.DataFrame:
 
 
 def generate_customer_region_usage(rng: np.random.Generator, customers: pd.DataFrame) -> pd.DataFrame:
-    pr_ids = [p["region_id"] for p in PRICING_REGIONS]
+    all_pr_ids = [p["region_id"] for p in PRICING_REGIONS]
     rows = []
     for _, c in customers.iterrows():
-        primary_regions = BASE_TO_PRICING[c["region"]]
-        n_regions = int(np.clip(rng.normal(3, 1), 2, len(primary_regions)))
-        chosen = list(rng.choice(primary_regions, size=min(n_regions, len(primary_regions)), replace=False))
-        # add 0-1 random extra region for enterprise
-        if c["plan_tier"] == "Enterprise" and rng.random() > 0.4:
-            extra = [r for r in pr_ids if r not in chosen]
-            if extra:
-                chosen.append(rng.choice(extra))
-        # generate shares
-        shares = rng.dirichlet(np.ones(len(chosen)) * 2.0)
+        # Global customers get all 10 regions
+        if c["name"] in ALL_REGION_CUSTOMERS:
+            chosen = all_pr_ids[:]
+        else:
+            primary = BASE_TO_PRICING[c["region"]]
+            extra   = [r for r in all_pr_ids if r not in primary]
+            # more regions for larger plans
+            n_primary = {"Starter": 2, "Growth": 3, "Enterprise": 4}[c["plan_tier"]]
+            n_extra   = {"Starter": 1, "Growth": 2, "Enterprise": 4}[c["plan_tier"]]
+            chosen_primary = list(rng.choice(primary, size=min(n_primary, len(primary)), replace=False))
+            chosen_extra   = list(rng.choice(extra,   size=min(n_extra,   len(extra)),   replace=False))
+            chosen = chosen_primary + chosen_extra
+        # primary region gets dominant share
+        alpha = [3.0 if r in BASE_TO_PRICING.get(c["region"], []) else 1.0 for r in chosen]
+        shares = rng.dirichlet(alpha)
         shares = shares / shares.sum()
         for rid, share in zip(chosen, shares):
             rows.append({"customer_id": c["customer_id"], "region_id": rid, "usage_share": round(float(share), 4)})
@@ -166,8 +174,8 @@ def generate_subscriptions(rng: np.random.Generator, customers: pd.DataFrame) ->
         for pi in rng.choice(len(PRODUCTS), size=n_prod, replace=False):
             p = PRODUCTS[pi]
             tier_mult  = {"Starter": 1.0, "Growth": 4.0, "Enterprise": 18.0}[c["plan_tier"]]
-            base_limit = {"api_calls_M": 50, "GB": 500, "GB_egress": 200, "vcpu_hours": 800,
-                          "events_M": 20, "MAU_K": 10, "runs_K": 50, "invocations_M": 30}[p["unit"]]
+            base_limit = {"M Requests": 50, "TB": 0.5, "TB Egress": 0.2, "Core-hrs": 800,
+                          "M Events": 20, "K Users": 10, "K Runs": 50, "M Invocations": 30}[p["unit"]]
             plan_limit = round(base_limit * tier_mult * float(rng.uniform(0.7, 1.3)), 2)
             sub_start  = max(c["signup_date"], END_MONTH - timedelta(days=int(rng.integers(60, 720))))
             rows.append({"customer_id": c["customer_id"], "product_id": p["product_id"],

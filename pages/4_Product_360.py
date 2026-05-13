@@ -121,3 +121,27 @@ if q:
     with st.spinner("Thinking..."):
         answer = llm.ask_about(context, q)
     st.markdown(f"**Answer:** {answer}")
+
+st.markdown("---")
+
+# ── Export to Google Slides ───────────────────────────────────────────────────
+st.subheader("📊 Export to Google Slides")
+st.caption("Download a .pptx → upload to Google Drive → opens as Google Slides automatically.")
+
+if st.button("⬇ Download Product Deck (.pptx)", type="primary"):
+    from lib.export_pptx import product_deck
+    with st.spinner("Building deck..."):
+        pptx_bytes = product_deck(
+            prod=prod,
+            top_customers=top,
+            mom_df=mom,
+            regional_df=reg,
+            adoption_pct=float(this_row["adoption_pct"]),
+            avg_util=float(avg_util),
+        )
+    st.download_button(
+        label="📥 Click here to save",
+        data=pptx_bytes,
+        file_name=f"{prod['name'].replace(' ', '_')}_Product_360.pptx",
+        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )

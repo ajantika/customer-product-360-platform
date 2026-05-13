@@ -221,3 +221,136 @@ def customer_deck(
     buf = io.BytesIO()
     prs.save(buf)
     return buf.getvalue()
+
+
+# ─── Product 360 deck ─────────────────────────────────────────────────────────
+
+def product_deck(
+    prod: pd.Series,
+    top_customers: pd.DataFrame,
+    mom_df: pd.DataFrame,
+    regional_df: pd.DataFrame,
+    adoption_pct: float,
+    avg_util: float,
+) -> bytes:
+    prs = _prs()
+    today = date.today().strftime("%B %d, %Y")
+
+    # Slide 1: Cover
+    _cover(prs, str(prod["name"]), f"{prod['category']}  ·  {prod['unit']}  ·  ${float(prod['list_price_per_unit']):.3f}/unit", today)
+
+    # Slide 2: Product snapshot KPIs
+    slide = _blank(prs)
+    _bg(slide)
+    _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+    _txt(slide, f"Product Snapshot — {prod['name']}", Inches(0.4), Inches(0.22),
+         Inches(10), Inches(0.65), size=22, bold=True)
+
+    kpis = [
+        ("Category",        str(prod.get("category", "—"))),
+        ("Unit",            str(prod.get("unit", "—"))),
+        ("List Price",      f"${float(prod.get('list_price_per_unit', 0)):.3f}/unit"),
+        ("Adoption",        f"{adoption_pct:.0f}%"),
+        ("Avg Utilization", f"{avg_util:.0f}%"),
+    ]
+    for i, (lbl, val) in enumerate(kpis):
+        _kpi_box(slide, lbl, val, Inches(0.4 + i * 2.55), Inches(1.4))
+
+    # Slide 3: Top customers table
+    if not top_customers.empty:
+        slide = _blank(prs)
+        _bg(slide)
+        _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+        _txt(slide, "Top Customers", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
+
+        headers = ["Customer", "Region", "Plan", "MRR", "Usage", "Utilization"]
+        col_w   = [Inches(2.8), Inches(1.4), Inches(1.2), Inches(1.6), Inches(2.2), Inches(1.8)]
+        row_h   = Inches(0.48)
+        top0    = Inches(1.3)
+        lefts   = [Inches(0.3)]
+        for w in col_w[:-1]:
+            lefts.append(lefts[-1] + w)
+
+        for ci, (h, lft, ww) in enumerate(zip(headers, lefts, col_w)):
+            _rect(slide, lft, top0, ww, row_h, RGBColor(0x3B, 0x2A, 0x8A))
+            _txt(slide, h, lft + Inches(0.08), top0 + Inches(0.1), ww, row_h, size=10, bold=True, color=GREY)
+
+        for ri, (_, row) in enumerate(top_customers.head(10).iterrows()):
+            row_top = top0 + row_h * (ri + 1)
+            bg = RGBColor(0x1A, 0x10, 0x40) if ri % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
+            for lft, ww in zip(lefts, col_w):
+                _rect(slide, lft, row_top, ww, row_h, bg)
+            util = float(row.get("utilization_pct", 0))
+            util_color = RED if util > 100 else (YELLOW if util < 50 else GREEN)
+            unit_str = str(row.get("unit", ""))
+            vals = [
+                str(row.get("name", "")),
+                str(row.get("region", "")),
+                str(row.get("plan_tier", "")),
+                f"${float(row.get('mrr_usd', 0)):,.0f}",
+                f"{float(row.get('usage', 0)):,.1f} {unit_str}",
+                f"{util:.0f}%",
+            ]
+            for vi, (val, lft, ww) in enumerate(zip(vals, lefts, col_w)):
+                c = util_color if vi == 5 else WHITE
+                _txt(slide, val, lft + Inches(0.08), row_top + Inches(0.12), ww, row_h, size=10, color=c)
+
+    # Slide 4: Regional adoption
+    if not regional_df.empty:
+        slide = _blank(prs)
+        _bg(slide)
+        _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+        _txt(slide, "Regional Adoption", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
+
+        headers = ["Region", "Customers", "Adoption %"]
+        col_w   = [Inches(4.0), Inches(2.5), Inches(2.5)]
+        row_h   = Inches(0.5)
+        top0    = Inches(1.3)
+        lefts   = [Inches(0.3)]
+        for w in col_w[:-1]:
+            lefts.append(lefts[-1] + w)
+
+        for ci, (h, lft, ww) in enumerate(zip(headers, lefts, col_w)):
+            _rect(slide, lft, top0, ww, row_h, RGBColor(0x3B, 0x2A, 0x8A))
+            _txt(slide, h, lft + Inches(0.08), top0 + Inches(0.1), ww, row_h, size=10, bold=True, color=GREY)
+
+        for ri, (_, row) in enumerate(regional_df.iterrows()):
+            row_top = top0 + row_h * (ri + 1)
+            bg = RGBColor(0x1A, 0x10, 0x40) if ri % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
+            for lft, ww in zip(lefts, col_w):
+                _rect(slide, lft, row_top, ww, row_h, bg)
+            vals = [
+                str(row.get("region", "")),
+                str(int(row.get("customers", 0))),
+                f"{float(row.get('adoption_pct', 0)):.0f}%",
+            ]
+            for val, lft, ww in zip(vals, lefts, col_w):
+                _txt(slide, val, lft + Inches(0.08), row_top + Inches(0.12), ww, row_h, size=11)
+
+    # Slide 5: MoM trend
+    if not mom_df.empty:
+        slide = _blank(prs)
+        _bg(slide)
+        _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+        _txt(slide, "Month-over-Month Utilization Trend", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
+        recent = mom_df.tail(12).copy()
+        recent["month_label"] = recent["month"].dt.strftime("%b %Y")
+        col_w = [Inches(2.2), Inches(2.2)]
+        row_h = Inches(0.42)
+        top0  = Inches(1.3)
+        for ri, (_, row) in enumerate(recent.iterrows()):
+            col = ri % 2
+            rr  = ri // 2
+            lft = Inches(0.3) + col * Inches(6.5)
+            row_top = top0 + rr * row_h
+            bg = RGBColor(0x1A, 0x10, 0x40) if rr % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
+            _rect(slide, lft, row_top, Inches(3.5), row_h, bg)
+            _rect(slide, lft + Inches(3.5), row_top, Inches(2.8), row_h, bg)
+            util = float(row["utilization_pct"])
+            uc   = RED if util > 100 else (YELLOW if util < 50 else GREEN)
+            _txt(slide, row["month_label"], lft + Inches(0.1), row_top + Inches(0.1), Inches(3.3), row_h, size=11)
+            _txt(slide, f"{util:.0f}%", lft + Inches(3.6), row_top + Inches(0.1), Inches(2.5), row_h, size=11, bold=True, color=uc)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()

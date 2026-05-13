@@ -1,4 +1,4 @@
-"""Customer 360 — product tabs, campaign source, 10-region pricing breakdown."""
+"""Customer 360 — product tabs, campaign source, pricing region breakdown, PPTX export."""
 import pandas as pd
 import streamlit as st
 
@@ -20,6 +20,7 @@ st.session_state["selected_customer_id"] = selected_id
 
 cust = customers[customers["customer_id"] == selected_id].iloc[0]
 
+# ── Header card ───────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="cust-card" style="display:flex; gap:20px; align-items:flex-start;">
   {theme.avatar(cust['name'])}
@@ -27,7 +28,7 @@ st.markdown(f"""
     <div style="font-size:1.5rem;font-weight:700;color:#f5f3ff;margin-bottom:6px;">{cust['name']}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       {theme.status_badge(cust['status'])}
-      {theme.campaign_badge(cust['marketing_campaign'])}
+      {theme.campaign_badge(cust.get('marketing_campaign', 'Direct / Organic'))}
     </div>
     <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:8px;">
       <div><div style="color:#a78bfa;font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;">Region</div>
@@ -39,7 +40,7 @@ st.markdown(f"""
       <div><div style="color:#a78bfa;font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;">MRR</div>
            <div style="color:#f5f3ff;font-weight:600;">${cust['mrr_usd']:,.0f}</div></div>
       <div><div style="color:#a78bfa;font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;">Contract End</div>
-           <div style="color:#f5f3ff;font-weight:600;">{pd.Timestamp(cust['contract_end_date']).strftime('%b %Y')}</div></div>
+           <div style="color:#f5f3ff;font-weight:600;">{pd.Timestamp(cust.get('contract_end_date', '2027-12-31')).strftime('%b %Y')}</div></div>
     </div>
   </div>
 </div>
@@ -47,7 +48,7 @@ st.markdown(f"""
 
 st.markdown("---")
 
-# Products as tabs
+# ── Products — tabs (metrics + badge only, no duplicate chart) ────────────────
 st.subheader("Products")
 prod_df = metrics.customer_product_summary(selected_id, subs, usage, products)
 
@@ -57,28 +58,34 @@ else:
     tabs = st.tabs([row["name"] for _, row in prod_df.iterrows()])
     for tab, (_, row) in zip(tabs, prod_df.iterrows()):
         with tab:
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Category", row["category"])
-            c2.metric("Usage", f"{row['usage']:,.1f} {row['unit']}")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Category",   row["category"])
+            c2.metric("Usage",      f"{row['usage']:,.1f} {row['unit']}")
             c3.metric("Plan Limit", f"{row['plan_limit']:,.1f} {row['unit']}")
+            c4.metric("Utilization", f"{row['utilization_pct']:.0f}%")
             st.markdown(theme.util_badge(row["utilization_pct"]), unsafe_allow_html=True)
-            mom_p = metrics.customer_mom_usage(selected_id, usage, product_id=row["product_id"])
-            if not mom_p.empty:
-                st.plotly_chart(charts.bar_mom(mom_p, title=f"{row['name']} — MoM utilization"), width="stretch")
 
 st.markdown("---")
 
+# ── Single MoM chart with product filter ─────────────────────────────────────
 left, right = st.columns([3, 2])
 
 with left:
-    st.subheader("Month-over-month usage (all products)")
-    mom_all = metrics.customer_mom_usage(selected_id, usage)
-    if not mom_all.empty:
-        st.plotly_chart(charts.bar_mom(mom_all), width="stretch")
+    st.subheader("Month-over-month usage")
+    prod_options = ["All products"] + prod_df["name"].tolist() if not prod_df.empty else ["All products"]
+    prod_filter  = st.selectbox("Filter by product", prod_options, key="cust360_prod_filter")
+    pid = None
+    if prod_filter != "All products" and not prod_df.empty:
+        pid = prod_df[prod_df["name"] == prod_filter]["product_id"].iloc[0]
+    mom = metrics.customer_mom_usage(selected_id, usage, product_id=pid)
+    if not mom.empty:
+        st.plotly_chart(charts.bar_mom(mom), width="stretch")
+    else:
+        st.info("No usage history.")
 
 with right:
     st.subheader("Usage by pricing region")
-    st.caption("Usage share × price multiplier shows where cost is concentrated.")
+    st.caption("Usage share × price multiplier shows cost concentration.")
     cru_cust = cru[cru["customer_id"] == selected_id].merge(pricing_regions, on="region_id")
     if not cru_cust.empty:
         cru_cust["weighted_mrr"] = cru_cust["usage_share"] * cru_cust["price_multiplier"] * float(cust["mrr_usd"])
@@ -87,23 +94,27 @@ with right:
         tbl["Usage %"]      = (tbl["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
         tbl["Price mult."]  = tbl["price_multiplier"].map(lambda x: f"{x:.2f}×")
         tbl["Weighted MRR"] = tbl["weighted_mrr"].map(lambda x: f"${x:,.0f}")
-        tbl["Alert"] = cru_cust.apply(
-            lambda r: "🔴 High cost" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
+        tbl["Alert"]        = cru_cust.apply(
+            lambda r: "🔴" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
         ).values
         st.dataframe(
             tbl[["name", "Usage %", "Price mult.", "Weighted MRR", "Alert"]].rename(columns={"name": "Region"}),
-            width="stretch", hide_index=True, height=300,
+            width="stretch", hide_index=True, height=340,
         )
+    else:
+        st.info("No regional data.")
 
 st.markdown("---")
 
+# ── Ask AI ────────────────────────────────────────────────────────────────────
 st.subheader("💬 Ask AI about this customer")
 st.caption("Powered by Groq + Llama 3.1")
 
 context = {
     "customer": cust["name"], "region": cust["region"], "industry": cust["industry"],
     "plan_tier": cust["plan_tier"], "mrr_usd": float(cust["mrr_usd"]), "status": cust["status"],
-    "acquired_via": cust["marketing_campaign"], "contract_end": str(cust["contract_end_date"]),
+    "acquired_via": cust.get("marketing_campaign", "—"),
+    "contract_end": str(cust.get("contract_end_date", "—")),
     "products": [
         f"{r['name']}: {r['utilization_pct']:.0f}% of plan ({r['usage']:.1f}/{r['plan_limit']:.1f} {r['unit']})"
         for _, r in prod_df.iterrows()
@@ -122,34 +133,32 @@ if q:
     with st.spinner("Thinking..."):
         st.markdown(f"**Answer:** {llm.ask_about(context, q)}")
 
-# ── Export to Slides ──────────────────────────────────────────────────────────
 st.markdown("---")
+
+# ── Export to Google Slides ───────────────────────────────────────────────────
 st.subheader("📊 Export to Google Slides")
-st.caption("Downloads a .pptx file you can upload to Google Drive — it auto-converts to Google Slides.")
+st.caption("Download a .pptx → upload to Google Drive → opens as Google Slides automatically.")
 
 if st.button("⬇ Download Customer Deck (.pptx)", type="primary"):
     from lib.export_pptx import customer_deck
-    # Build region table
-    cru_cust = cru[cru["customer_id"] == selected_id].merge(pricing_regions, on="region_id")
-    region_tbl = None
-    if not cru_cust.empty:
-        cru_cust["weighted_mrr"] = cru_cust["usage_share"] * cru_cust["price_multiplier"] * float(cust["mrr_usd"])
-        cru_cust = cru_cust.sort_values("weighted_mrr", ascending=False)
-        tbl = cru_cust[["name", "usage_share", "price_multiplier", "weighted_mrr"]].copy()
-        tbl["Usage %"]      = (tbl["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
-        tbl["Price mult."]  = tbl["price_multiplier"].map(lambda x: f"{x:.2f}×")
-        tbl["Weighted MRR"] = tbl["weighted_mrr"].map(lambda x: f"${x:,.0f}")
-        tbl["Alert"]        = cru_cust.apply(
-            lambda r: "🔴 High cost" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
+    cru_cust2 = cru[cru["customer_id"] == selected_id].merge(pricing_regions, on="region_id")
+    region_tbl = pd.DataFrame()
+    if not cru_cust2.empty:
+        cru_cust2["weighted_mrr"] = cru_cust2["usage_share"] * cru_cust2["price_multiplier"] * float(cust["mrr_usd"])
+        cru_cust2 = cru_cust2.sort_values("weighted_mrr", ascending=False)
+        t = cru_cust2[["name", "usage_share", "price_multiplier", "weighted_mrr"]].copy()
+        t["Usage %"]      = (t["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
+        t["Price mult."]  = t["price_multiplier"].map(lambda x: f"{x:.2f}×")
+        t["Weighted MRR"] = t["weighted_mrr"].map(lambda x: f"${x:,.0f}")
+        t["Alert"]        = cru_cust2.apply(
+            lambda r: "High cost" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
         ).values
-        region_tbl = tbl[["name", "Usage %", "Price mult.", "Weighted MRR", "Alert"]].rename(columns={"name": "Region"})
-
+        region_tbl = t[["name", "Usage %", "Price mult.", "Weighted MRR", "Alert"]].rename(columns={"name": "Region"})
     mom_all = metrics.customer_mom_usage(selected_id, usage)
     with st.spinner("Building deck..."):
-        pptx_bytes = customer_deck(cust, prod_df, mom_all, region_tbl if region_tbl is not None else pd.DataFrame())
-
+        pptx_bytes = customer_deck(cust, prod_df, mom_all, region_tbl)
     st.download_button(
-        label="📥 Click here to save the file",
+        label="📥 Click here to save",
         data=pptx_bytes,
         file_name=f"{cust['name'].replace(' ', '_')}_Customer_360.pptx",
         mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
