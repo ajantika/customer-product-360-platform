@@ -85,20 +85,13 @@ with left:
 
 with right:
     st.subheader("Usage by pricing region")
-    st.caption("Usage share × price multiplier shows cost concentration.")
     cru_cust = cru[cru["customer_id"] == selected_id].merge(pricing_regions, on="region_id")
     if not cru_cust.empty:
-        cru_cust["weighted_mrr"] = cru_cust["usage_share"] * cru_cust["price_multiplier"] * float(cust["mrr_usd"])
-        cru_cust = cru_cust.sort_values("weighted_mrr", ascending=False)
-        tbl = cru_cust[["name", "usage_share", "price_multiplier", "weighted_mrr"]].copy()
-        tbl["Usage %"]      = (tbl["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
-        tbl["Price mult."]  = tbl["price_multiplier"].map(lambda x: f"{x:.2f}×")
-        tbl["Weighted MRR"] = tbl["weighted_mrr"].map(lambda x: f"${x:,.0f}")
-        tbl["Alert"]        = cru_cust.apply(
-            lambda r: "🔴" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
-        ).values
+        tbl = cru_cust[["name", "usage_share"]].copy()
+        tbl["Usage %"] = (tbl["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
+        tbl = tbl.sort_values("usage_share", ascending=False).rename(columns={"name": "Region"})
         st.dataframe(
-            tbl[["name", "Usage %", "Price mult.", "Weighted MRR", "Alert"]].rename(columns={"name": "Region"}),
+            tbl[["Region", "Usage %"]],
             width="stretch", hide_index=True, height=340,
         )
     else:
@@ -123,12 +116,11 @@ context = {
 
 example_qs = ["Is this customer an upsell candidate?", "What is their churn risk?", "Which product is over-utilized?"]
 ec = st.columns(3)
-for i, q in enumerate(example_qs):
-    if ec[i].button(q, key=f"ex_{i}"):
-        st.session_state["cust360_q"] = q
+for i, qx in enumerate(example_qs):
+    if ec[i].button(qx, key=f"ex_{i}"):
+        st.session_state["cust360_q_input"] = qx
 
-q = st.text_input("Ask a question", value=st.session_state.get("cust360_q", ""),
-                  placeholder="e.g. Should we offer a plan upgrade?", key="cust360_q_input")
+q = st.text_input("Ask a question", placeholder="e.g. Should we offer a plan upgrade?", key="cust360_q_input")
 if q:
     with st.spinner("Thinking..."):
         st.markdown(f"**Answer:** {llm.ask_about(context, q)}")

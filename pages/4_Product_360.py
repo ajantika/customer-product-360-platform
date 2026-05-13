@@ -109,11 +109,10 @@ example_qs = [
 ec = st.columns(len(example_qs))
 for i, qx in enumerate(example_qs):
     if ec[i].button(qx, key=f"prod_ex_{i}"):
-        st.session_state["prod360_q"] = qx
+        st.session_state["prod360_q_input"] = qx
 
 q = st.text_input(
     "Ask a question",
-    value=st.session_state.get("prod360_q", ""),
     placeholder="e.g. Where should we focus marketing spend for this product?",
     key="prod360_q_input",
 )
