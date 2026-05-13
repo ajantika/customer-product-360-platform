@@ -12,27 +12,36 @@ Built as a portfolio recreation of a platform I built at Cloudflare, where it he
 
 | Page | Purpose |
 |---|---|
-| **Home** | KPI overview — Total MRR, active customers, % over/under-utilized, MRR by region, top products |
-| **Customer List** | Searchable, filterable customer table with drill-through to Customer 360 |
-| **Customer 360** | Per-customer view: products + utilization badges, regional footprint, 24-month usage trend, AI Q&A |
-| **Product List** | All products with adoption %, attributed MRR, top customers |
-| **Product 360** | Per-product view: regional adoption, MoM trend, top customers, AI Q&A |
+| **Overview** | KPI summary — Total MRR, active customers, % over/under-utilized, MRR by region, top products by adoption |
+| **Customer List** | Searchable, filterable table with utilization %, MRR impact, acquisition channel, and contract end date |
+| **Customer 360** | Per-customer drilldown: product tabs with utilization badges, pricing region breakdown, 24-month MoM trend, AI Q&A, and PPTX export |
+| **Product List** | All products with adoption %, attributed MRR, top customers per product |
+| **Product 360** | Per-product view: regional adoption, MoM aggregate trend, top customers table, AI Q&A, and PPTX export |
 | **Cohorts** | Auto-generated segments — upsell candidates, churn risk, MRR-at-risk |
 
-### Key features
-- **Over/under-utilization detection** — flags customers consuming more or less than their plan limit
-- **Month-over-month trend analysis** — 24 months of usage history per customer and product
-- **AI Q&A panel** — ask natural-language questions about any customer or product (Groq + Llama 3.1)
+---
+
+## Key features
+
+- **Over/under-utilization detection** — flags customers consuming more or less than their plan limit, with badges and MRR impact estimates
+- **24-month MoM trend** — usage history per customer and product with a product filter dropdown
+- **10 pricing regions** — customers are mapped across up to 10 global pricing regions (North America, Europe, APAC, Latin America, Korea, Taiwan, Japan, India, Oceania, Middle East & Africa) with regional usage share
+- **Acquisition channel tracking** — 8 marketing channels (Google Ads, LinkedIn, SEO, Referral, Partner, Conference, SDR, Organic) tied to each customer
+- **Contract end date** — quarter-end snapped contract dates surfaced in the customer list and drilldown
+- **Export to Google Slides** — download a branded `.pptx` deck for any customer or product; upload to Google Drive and it opens as Google Slides automatically
+- **AI Q&A panel** — ask natural-language questions about any customer or product; example prompts are one-click (Groq + Llama 3.1 8b-instant)
 - **Three actionable cohorts** — auto-segments for sales outreach, CS intervention, and finance risk management
+- **Demo disclaimer** — sidebar banner on every page makes it clear this is illustrative data, not production
 
 ---
 
 ## Architecture
 
 ```
-Streamlit (multi-page)
+Streamlit (multi-page, st.navigation)
     ├── pandas + plotly      → data processing and interactive charts
     ├── pyarrow (parquet)    → fast cached data loading
+    ├── python-pptx          → PPTX / Google Slides export
     └── Groq + Llama 3.1    → AI Q&A panel (context-injected, per-entity)
 ```
 
@@ -61,13 +70,13 @@ Open **http://localhost:8501** in your browser.
 
 ## Tech stack
 
-`Python` `Streamlit` `pandas` `plotly` `Groq` `Llama 3.1` `pyarrow` `Faker` `numpy`
+`Python` `Streamlit` `pandas` `plotly` `Groq` `Llama 3.1` `python-pptx` `pyarrow` `Faker` `numpy`
 
 ---
 
 ## Data model
 
-200 synthetic customers · 8 products · 512 subscriptions · 6,600+ monthly usage records · 24 months history
+200 synthetic customers · 8 products · ~530 subscriptions · 6,400+ monthly usage records · 24 months history · 10 pricing regions · 962 customer-region mappings
 
 See [`data/README.md`](data/README.md) for full schema.
 
