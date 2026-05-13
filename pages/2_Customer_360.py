@@ -136,16 +136,10 @@ if st.button("⬇ Download Customer Deck (.pptx)", type="primary"):
     cru_cust2 = cru[cru["customer_id"] == selected_id].merge(pricing_regions, on="region_id")
     region_tbl = pd.DataFrame()
     if not cru_cust2.empty:
-        cru_cust2["weighted_mrr"] = cru_cust2["usage_share"] * cru_cust2["price_multiplier"] * float(cust["mrr_usd"])
-        cru_cust2 = cru_cust2.sort_values("weighted_mrr", ascending=False)
-        t = cru_cust2[["name", "usage_share", "price_multiplier", "weighted_mrr"]].copy()
-        t["Usage %"]      = (t["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
-        t["Price mult."]  = t["price_multiplier"].map(lambda x: f"{x:.2f}×")
-        t["Weighted MRR"] = t["weighted_mrr"].map(lambda x: f"${x:,.0f}")
-        t["Alert"]        = cru_cust2.apply(
-            lambda r: "High cost" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
-        ).values
-        region_tbl = t[["name", "Usage %", "Price mult.", "Weighted MRR", "Alert"]].rename(columns={"name": "Region"})
+        t = cru_cust2[["name", "usage_share"]].copy()
+        t["Usage %"] = (t["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
+        t = t.sort_values("usage_share", ascending=False)
+        region_tbl = t[["name", "Usage %"]].rename(columns={"name": "Region"})
     mom_all = metrics.customer_mom_usage(selected_id, usage)
     with st.spinner("Building deck..."):
         pptx_bytes = customer_deck(cust, prod_df, mom_all, region_tbl)

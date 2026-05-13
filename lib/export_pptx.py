@@ -158,26 +158,22 @@ def customer_deck(
                 c = util_color if vi == 4 else WHITE
                 _txt(slide, str(val), lft + Inches(0.08), row_top + Inches(0.12), ww, row_h, size=11, color=c)
 
-    # Slide 4: Pricing region table
+    # Slide 4: Pricing region table (Region + Usage % only)
     if not region_tbl.empty:
         slide = _blank(prs)
         _bg(slide)
         _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
         _txt(slide, "Usage by Pricing Region", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
-        _txt(slide, "High price-multiplier regions with high usage share = cost concentration risk",
-             Inches(0.4), Inches(1.15), Inches(12), Inches(0.4), size=10, color=GREY)
 
-        headers = ["Region", "Usage %", "Price Multiplier", "Weighted MRR", "Alert"]
-        col_w   = [Inches(3.0), Inches(1.5), Inches(2.2), Inches(2.2), Inches(2.0)]
+        headers = ["Region", "Usage %"]
+        col_w   = [Inches(8.0), Inches(2.5)]
         row_h   = Inches(0.52)
-        top0    = Inches(1.65)
-        lefts   = [Inches(0.3)]
-        for w in col_w[:-1]:
-            lefts.append(lefts[-1] + w)
+        top0    = Inches(1.4)
+        lefts   = [Inches(0.3), Inches(8.3)]
 
-        for ci, (h, lft, ww) in enumerate(zip(headers, lefts, col_w)):
+        for h, lft, ww in zip(headers, lefts, col_w):
             _rect(slide, lft, top0, ww, row_h, RGBColor(0x3B, 0x2A, 0x8A))
-            _txt(slide, h, lft + Inches(0.08), top0 + Inches(0.12), ww, row_h, size=10, bold=True, color=GREY)
+            _txt(slide, h, lft + Inches(0.12), top0 + Inches(0.12), ww, row_h, size=10, bold=True, color=GREY)
 
         for ri, (_, row) in enumerate(region_tbl.iterrows()):
             row_top = top0 + row_h * (ri + 1)
@@ -187,14 +183,11 @@ def customer_deck(
             vals = [
                 str(row.get("Region", row.get("name", ""))),
                 str(row.get("Usage %", "")),
-                str(row.get("Price mult.", "")),
-                str(row.get("Weighted MRR", "")),
-                str(row.get("Alert", "")),
             ]
             for val, lft, ww in zip(vals, lefts, col_w):
-                _txt(slide, val, lft + Inches(0.08), row_top + Inches(0.13), ww, row_h, size=11)
+                _txt(slide, val, lft + Inches(0.12), row_top + Inches(0.13), ww, row_h, size=12)
 
-    # Slide 5: MoM trend (as a table since embedding chart images needs kaleido)
+    # Slide 5: MoM trend — single column table
     if not mom_df.empty:
         slide = _blank(prs)
         _bg(slide)
@@ -202,21 +195,28 @@ def customer_deck(
         _txt(slide, "Month-over-Month Usage Trend", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
         recent = mom_df.tail(12).copy()
         recent["month_label"] = recent["month"].dt.strftime("%b %Y")
-        col_w = [Inches(2.2), Inches(2.2)]
-        row_h = Inches(0.42)
+        row_h = Inches(0.44)
         top0  = Inches(1.3)
+        month_w = Inches(8.0)
+        util_w  = Inches(2.5)
+        month_lft = Inches(0.3)
+        util_lft  = Inches(8.3)
+
+        # Header row
+        _rect(slide, month_lft, top0, month_w, row_h, RGBColor(0x3B, 0x2A, 0x8A))
+        _rect(slide, util_lft,  top0, util_w,  row_h, RGBColor(0x3B, 0x2A, 0x8A))
+        _txt(slide, "Month",        month_lft + Inches(0.12), top0 + Inches(0.1), month_w, row_h, size=10, bold=True, color=GREY)
+        _txt(slide, "Avg Util %",   util_lft  + Inches(0.12), top0 + Inches(0.1), util_w,  row_h, size=10, bold=True, color=GREY)
+
         for ri, (_, row) in enumerate(recent.iterrows()):
-            col = ri % 2
-            rr  = ri // 2
-            lft = Inches(0.3) + col * Inches(6.5)
-            row_top = top0 + rr * row_h
-            bg = RGBColor(0x1A, 0x10, 0x40) if rr % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
-            _rect(slide, lft, row_top, Inches(3.5), row_h, bg)
-            _rect(slide, lft + Inches(3.5), row_top, Inches(2.8), row_h, bg)
+            row_top = top0 + row_h * (ri + 1)
+            bg = RGBColor(0x1A, 0x10, 0x40) if ri % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
+            _rect(slide, month_lft, row_top, month_w, row_h, bg)
+            _rect(slide, util_lft,  row_top, util_w,  row_h, bg)
             util = float(row["utilization_pct"])
             uc   = RED if util > 100 else (YELLOW if util < 50 else GREEN)
-            _txt(slide, row["month_label"], lft + Inches(0.1), row_top + Inches(0.1), Inches(3.3), row_h, size=11)
-            _txt(slide, f"{util:.0f}%", lft + Inches(3.6), row_top + Inches(0.1), Inches(2.5), row_h, size=11, bold=True, color=uc)
+            _txt(slide, row["month_label"], month_lft + Inches(0.12), row_top + Inches(0.1), month_w, row_h, size=12)
+            _txt(slide, f"{util:.0f}%",    util_lft  + Inches(0.12), row_top + Inches(0.1), util_w,  row_h, size=12, bold=True, color=uc)
 
     buf = io.BytesIO()
     prs.save(buf)
