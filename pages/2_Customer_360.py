@@ -121,3 +121,36 @@ q = st.text_input("Ask a question", value=st.session_state.get("cust360_q", ""),
 if q:
     with st.spinner("Thinking..."):
         st.markdown(f"**Answer:** {llm.ask_about(context, q)}")
+
+# ── Export to Slides ──────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("📊 Export to Google Slides")
+st.caption("Downloads a .pptx file you can upload to Google Drive — it auto-converts to Google Slides.")
+
+if st.button("⬇ Download Customer Deck (.pptx)", type="primary"):
+    from lib.export_pptx import customer_deck
+    # Build region table
+    cru_cust = cru[cru["customer_id"] == selected_id].merge(pricing_regions, on="region_id")
+    region_tbl = None
+    if not cru_cust.empty:
+        cru_cust["weighted_mrr"] = cru_cust["usage_share"] * cru_cust["price_multiplier"] * float(cust["mrr_usd"])
+        cru_cust = cru_cust.sort_values("weighted_mrr", ascending=False)
+        tbl = cru_cust[["name", "usage_share", "price_multiplier", "weighted_mrr"]].copy()
+        tbl["Usage %"]      = (tbl["usage_share"] * 100).map(lambda x: f"{x:.0f}%")
+        tbl["Price mult."]  = tbl["price_multiplier"].map(lambda x: f"{x:.2f}×")
+        tbl["Weighted MRR"] = tbl["weighted_mrr"].map(lambda x: f"${x:,.0f}")
+        tbl["Alert"]        = cru_cust.apply(
+            lambda r: "🔴 High cost" if r["price_multiplier"] >= 1.3 and r["usage_share"] >= 0.20 else "", axis=1
+        ).values
+        region_tbl = tbl[["name", "Usage %", "Price mult.", "Weighted MRR", "Alert"]].rename(columns={"name": "Region"})
+
+    mom_all = metrics.customer_mom_usage(selected_id, usage)
+    with st.spinner("Building deck..."):
+        pptx_bytes = customer_deck(cust, prod_df, mom_all, region_tbl if region_tbl is not None else pd.DataFrame())
+
+    st.download_button(
+        label="📥 Click here to save the file",
+        data=pptx_bytes,
+        file_name=f"{cust['name'].replace(' ', '_')}_Customer_360.pptx",
+        mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    )

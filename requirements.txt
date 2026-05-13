@@ -5,3 +5,4 @@ plotly>=5.18
 pyarrow>=14.0
 groq>=0.4
 faker>=22.0
+python-pptx>=1.0.0

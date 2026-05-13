@@ -8,6 +8,13 @@ d = data.load_all()
 customers = d["customers"].copy()
 usage = d["usage"]
 
+# Defensive: add new columns if old parquet is cached
+if "marketing_campaign" not in customers.columns:
+    customers["marketing_campaign"] = "Direct / Organic"
+if "contract_end_date" not in customers.columns:
+    import numpy as np
+    customers["contract_end_date"] = pd.to_datetime("2027-12-31")
+
 st.title("👥 Customer List")
 
 f1, f2, f3, f4 = st.columns([1, 1, 1, 2])
