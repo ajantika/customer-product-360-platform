@@ -65,8 +65,8 @@ if top.empty:
 else:
     disp = top.copy()
     disp["mrr_usd"] = disp["mrr_usd"].map(lambda x: f"${x:,.0f}")
-    disp["plan_limit"] = disp["plan_limit"].map(lambda x: f"{x:,.1f}")
-    disp["usage"] = disp["usage"].map(lambda x: f"{x:,.1f}")
+    disp["plan_limit"] = disp["plan_limit"].map(lambda x: f"{x:,.0f}")
+    disp["usage"] = disp["usage"].map(lambda x: f"{x:,.0f}")
     disp["utilization_pct"] = disp["utilization_pct"].map(lambda x: f"{x:.0f}%")
     disp = disp.rename(columns={
         "customer_id": "ID", "name": "Customer", "region": "Region", "plan_tier": "Plan",

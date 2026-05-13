@@ -63,14 +63,14 @@ BASE_TO_PRICING = {
 }
 
 PRODUCTS = [
-    {"product_id": "P01", "name": "API Gateway",    "category": "Compute",  "unit": "M Requests",    "list_price_per_unit": 0.40},
-    {"product_id": "P02", "name": "Object Storage", "category": "Storage",  "unit": "TB",            "list_price_per_unit": 23.00},
-    {"product_id": "P03", "name": "CDN",            "category": "Network",  "unit": "TB Egress",     "list_price_per_unit": 87.00},
-    {"product_id": "P04", "name": "Compute",        "category": "Compute",  "unit": "Core-hrs",      "list_price_per_unit": 0.048},
-    {"product_id": "P05", "name": "Analytics",      "category": "Data",     "unit": "M Events",      "list_price_per_unit": 1.20},
-    {"product_id": "P06", "name": "Identity",       "category": "Security", "unit": "K Users",       "list_price_per_unit": 5.00},
-    {"product_id": "P07", "name": "Workflow",       "category": "Platform", "unit": "K Runs",        "list_price_per_unit": 0.15},
-    {"product_id": "P08", "name": "Edge Functions", "category": "Compute",  "unit": "M Invocations", "list_price_per_unit": 0.20},
+    {"product_id": "P01", "name": "API Gateway",    "category": "Compute",  "unit": "MM req",   "list_price_per_unit": 0.40},
+    {"product_id": "P02", "name": "Object Storage", "category": "Storage",  "unit": "TB",       "list_price_per_unit": 23.00},
+    {"product_id": "P03", "name": "CDN",            "category": "Network",  "unit": "TB",       "list_price_per_unit": 87.00},
+    {"product_id": "P04", "name": "Compute",        "category": "Compute",  "unit": "C-hrs",    "list_price_per_unit": 0.048},
+    {"product_id": "P05", "name": "Analytics",      "category": "Data",     "unit": "M events", "list_price_per_unit": 1.20},
+    {"product_id": "P06", "name": "Identity",       "category": "Security", "unit": "K users",  "list_price_per_unit": 5.00},
+    {"product_id": "P07", "name": "Workflow",       "category": "Platform", "unit": "K runs",   "list_price_per_unit": 0.15},
+    {"product_id": "P08", "name": "Edge Functions", "category": "Compute",  "unit": "MM inv",   "list_price_per_unit": 0.20},
 ]
 
 # Global customers who have usage across all 10 pricing regions
@@ -174,8 +174,8 @@ def generate_subscriptions(rng: np.random.Generator, customers: pd.DataFrame) ->
         for pi in rng.choice(len(PRODUCTS), size=n_prod, replace=False):
             p = PRODUCTS[pi]
             tier_mult  = {"Starter": 1.0, "Growth": 4.0, "Enterprise": 18.0}[c["plan_tier"]]
-            base_limit = {"M Requests": 50, "TB": 0.5, "TB Egress": 0.2, "Core-hrs": 800,
-                          "M Events": 20, "K Users": 10, "K Runs": 50, "M Invocations": 30}[p["unit"]]
+            base_limit = {"MM req": 50, "TB": 0.5, "C-hrs": 800,
+                          "M events": 20, "K users": 10, "K runs": 50, "MM inv": 30}[p["unit"]]
             plan_limit = round(base_limit * tier_mult * float(rng.uniform(0.7, 1.3)), 2)
             sub_start  = max(c["signup_date"], END_MONTH - timedelta(days=int(rng.integers(60, 720))))
             rows.append({"customer_id": c["customer_id"], "product_id": p["product_id"],

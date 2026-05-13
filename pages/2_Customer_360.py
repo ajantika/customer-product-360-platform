@@ -60,8 +60,8 @@ else:
         with tab:
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Category",   row["category"])
-            c2.metric("Usage",      f"{row['usage']:,.1f} {row['unit']}")
-            c3.metric("Plan Limit", f"{row['plan_limit']:,.1f} {row['unit']}")
+            c2.metric("Usage",      f"{row['usage']:,.0f} {row['unit']}")
+            c3.metric("Plan Limit", f"{row['plan_limit']:,.0f} {row['unit']}")
             c4.metric("Utilization", f"{row['utilization_pct']:.0f}%")
             st.markdown(theme.util_badge(row["utilization_pct"]), unsafe_allow_html=True)
 
@@ -109,7 +109,7 @@ context = {
     "acquired_via": cust.get("marketing_campaign", "—"),
     "contract_end": str(cust.get("contract_end_date", "—")),
     "products": [
-        f"{r['name']}: {r['utilization_pct']:.0f}% of plan ({r['usage']:.1f}/{r['plan_limit']:.1f} {r['unit']})"
+        f"{r['name']}: {r['utilization_pct']:.0f}% of plan ({r['usage']:,.0f}/{r['plan_limit']:,.0f} {r['unit']})"
         for _, r in prod_df.iterrows()
     ] if not prod_df.empty else [],
 }

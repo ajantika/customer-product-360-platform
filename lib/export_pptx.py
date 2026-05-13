@@ -150,8 +150,8 @@ def customer_deck(
             util_color = RED if util > 100 else (YELLOW if util < 50 else GREEN)
             vals = [
                 row["name"], row["category"],
-                f"{row['usage']:,.1f} {row['unit']}",
-                f"{row['plan_limit']:,.1f} {row['unit']}",
+                f"{row['usage']:,.0f} {row['unit']}",
+                f"{row['plan_limit']:,.0f} {row['unit']}",
                 f"{util:.0f}%",
             ]
             for vi, (val, lft, ww) in enumerate(zip(vals, lefts, col_w)):
