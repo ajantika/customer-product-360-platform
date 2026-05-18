@@ -223,6 +223,29 @@ def customer_deck(
     return buf.getvalue()
 
 
+# ─── Shared table slide helper ────────────────────────────────────────────────
+
+def _table_slide(prs, title, headers, col_widths, rows_data, row_h=Inches(0.45)):
+    slide = _blank(prs)
+    _bg(slide)
+    _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+    _txt(slide, title, Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
+    top0  = Inches(1.3)
+    lefts = [Inches(0.3)]
+    for w in col_widths[:-1]:
+        lefts.append(lefts[-1] + w)
+    for h, lft, ww in zip(headers, lefts, col_widths):
+        _rect(slide, lft, top0, ww, row_h, RGBColor(0x3B, 0x2A, 0x8A))
+        _txt(slide, h, lft + Inches(0.08), top0 + Inches(0.1), ww, row_h, size=10, bold=True, color=GREY)
+    for ri, row_vals in enumerate(rows_data):
+        row_top = top0 + row_h * (ri + 1)
+        bg = RGBColor(0x1A, 0x10, 0x40) if ri % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
+        for lft, ww in zip(lefts, col_widths):
+            _rect(slide, lft, row_top, ww, row_h, bg)
+        for val, lft, ww in zip(row_vals, lefts, col_widths):
+            _txt(slide, str(val), lft + Inches(0.08), row_top + Inches(0.12), ww, row_h, size=11)
+
+
 # ─── Product 360 deck ─────────────────────────────────────────────────────────
 
 def product_deck(
@@ -350,6 +373,165 @@ def product_deck(
             uc   = RED if util > 100 else (YELLOW if util < 50 else GREEN)
             _txt(slide, row["month_label"], lft + Inches(0.1), row_top + Inches(0.1), Inches(3.3), row_h, size=11)
             _txt(slide, f"{util:.0f}%", lft + Inches(3.6), row_top + Inches(0.1), Inches(2.5), row_h, size=11, bold=True, color=uc)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+# ─── Overview deck ────────────────────────────────────────────────────────────
+
+def overview_deck(kpi: dict, mrr_by_region: pd.DataFrame, product_adoption: pd.DataFrame) -> bytes:
+    prs = _prs()
+    today = date.today().strftime("%B %d, %Y")
+
+    _cover(prs, "Platform Overview", "Customer & Product Intelligence Summary", today)
+
+    # Slide 2: KPI snapshot
+    slide = _blank(prs)
+    _bg(slide)
+    _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+    _txt(slide, "Platform KPIs", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
+    kpis = [
+        ("Total MRR",        f"${kpi['total_mrr']/1000:,.0f}K"),
+        ("Active Customers", f"{kpi['active_customers']:,}"),
+        ("Over-Utilized",    f"{kpi['pct_over']:.0f}%"),
+        ("Under-Utilized",   f"{kpi['pct_under']:.0f}%"),
+    ]
+    for i, (lbl, val) in enumerate(kpis):
+        _kpi_box(slide, lbl, val, Inches(0.4 + i * 3.1), Inches(1.8), width=Inches(2.8))
+
+    # Slide 3: MRR by region
+    if not mrr_by_region.empty:
+        rows = [[str(row.get("region", "")), f"${float(row.get('mrr_usd', 0)):,.0f}"]
+                for _, row in mrr_by_region.iterrows()]
+        _table_slide(prs, "MRR by Region", ["Region", "MRR ($)"],
+                     [Inches(7.0), Inches(3.0)], rows)
+
+    # Slide 4: Product adoption
+    if not product_adoption.empty:
+        rows = [[str(r["name"]), str(r["category"]), str(int(r["customers"])), f"{float(r['adoption_pct']):.0f}%"]
+                for _, r in product_adoption.iterrows()]
+        _table_slide(prs, "Product Adoption", ["Product", "Category", "Customers", "Adoption %"],
+                     [Inches(4.0), Inches(2.5), Inches(2.5), Inches(2.0)], rows)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+# ─── Customer List deck ───────────────────────────────────────────────────────
+
+def customer_list_deck(df: pd.DataFrame, summary: dict) -> bytes:
+    prs = _prs()
+    today = date.today().strftime("%B %d, %Y")
+
+    _cover(prs, "Customer List", f"{summary['total']:,} customers · {today}", today)
+
+    # Slide 2: Summary KPIs
+    slide = _blank(prs)
+    _bg(slide)
+    _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+    _txt(slide, "Customer Summary", Inches(0.4), Inches(0.22), Inches(10), Inches(0.65), size=22, bold=True)
+    kpis = [
+        ("Total Shown", f"{summary['total']:,}"),
+        ("Active",      f"{summary['active']:,}"),
+        ("At Risk",     f"{summary['at_risk']:,}"),
+        ("Churned",     f"{summary['churned']:,}"),
+    ]
+    for i, (lbl, val) in enumerate(kpis):
+        _kpi_box(slide, lbl, val, Inches(0.4 + i * 3.1), Inches(1.8), width=Inches(2.8))
+
+    # Slide 3: Customer table (top 20)
+    rows = []
+    for _, row in df.head(20).iterrows():
+        util = float(row.get("avg_util", 0))
+        rows.append([str(row.get("name", "")), str(row.get("region", "")),
+                     str(row.get("plan_tier", "")), f"${float(row.get('mrr_usd', 0)):,.0f}",
+                     f"{util:.0f}%", str(row.get("status", "")).replace("_", " ").title()])
+    _table_slide(prs, "Customer List (Top 20)",
+                 ["Customer", "Region", "Plan", "MRR ($)", "Util %", "Status"],
+                 [Inches(3.5), Inches(1.4), Inches(1.4), Inches(1.6), Inches(1.4), Inches(1.6)],
+                 rows, row_h=Inches(0.4))
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+# ─── Product List deck ────────────────────────────────────────────────────────
+
+def product_list_deck(product_df: pd.DataFrame) -> bytes:
+    prs = _prs()
+    today = date.today().strftime("%B %d, %Y")
+
+    _cover(prs, "Product List", "Adoption & Revenue Overview", today)
+
+    rows = [[str(r.get("name", "")), str(r.get("category", "")), str(r.get("unit", "")),
+             str(int(r.get("customers", 0))), f"{float(r.get('adoption_pct', 0)):.0f}%",
+             f"${float(r.get('mrr_attributed', 0)):,.0f}"]
+            for _, r in product_df.iterrows()]
+    _table_slide(prs, "Product Adoption & Revenue",
+                 ["Product", "Category", "Unit", "Customers", "Adoption %", "MRR ($)"],
+                 [Inches(2.8), Inches(1.8), Inches(1.4), Inches(1.4), Inches(1.6), Inches(1.8)],
+                 rows)
+
+    buf = io.BytesIO()
+    prs.save(buf)
+    return buf.getvalue()
+
+
+# ─── Cohorts deck ─────────────────────────────────────────────────────────────
+
+def cohorts_deck(upsell_df: pd.DataFrame, churn_df: pd.DataFrame, risk_df: pd.DataFrame) -> bytes:
+    prs = _prs()
+    today = date.today().strftime("%B %d, %Y")
+
+    _cover(prs, "Customer Cohorts", "Upsell · Churn Risk · MRR at Risk", today)
+
+    def _cohort_slide(title, subtitle, df, accent):
+        slide = _blank(prs)
+        _bg(slide)
+        _rect(slide, Inches(0), Inches(0), W, Inches(1.1), RGBColor(0x2D, 0x1F, 0x6E))
+        _txt(slide, title, Inches(0.4), Inches(0.22), Inches(9), Inches(0.65), size=22, bold=True)
+        mrr_total = df['mrr_usd'].sum() if not df.empty else 0
+        _txt(slide, f"{len(df)} customers  ·  ${mrr_total:,.0f} MRR",
+             Inches(0.4), Inches(0.82), Inches(9), Inches(0.4), size=13, color=accent)
+        _txt(slide, subtitle, Inches(0.4), Inches(1.15), Inches(12), Inches(0.35), size=10, color=GREY)
+
+        headers = ["Customer", "Region", "Plan", "MRR ($)", "Avg Util", "Status"]
+        col_w   = [Inches(3.2), Inches(1.4), Inches(1.4), Inches(1.6), Inches(1.6), Inches(1.6)]
+        row_h   = Inches(0.42)
+        top0    = Inches(1.6)
+        lefts   = [Inches(0.3)]
+        for w in col_w[:-1]:
+            lefts.append(lefts[-1] + w)
+        for h, lft, ww in zip(headers, lefts, col_w):
+            _rect(slide, lft, top0, ww, row_h, RGBColor(0x3B, 0x2A, 0x8A))
+            _txt(slide, h, lft + Inches(0.08), top0 + Inches(0.1), ww, row_h, size=10, bold=True, color=GREY)
+        for ri, (_, row) in enumerate(df.head(12).iterrows()):
+            row_top = top0 + row_h * (ri + 1)
+            bg = RGBColor(0x1A, 0x10, 0x40) if ri % 2 == 0 else RGBColor(0x22, 0x15, 0x55)
+            for lft, ww in zip(lefts, col_w):
+                _rect(slide, lft, row_top, ww, row_h, bg)
+            util = float(row.get("utilization_pct", 0))
+            uc = RED if util > 100 else (YELLOW if util < 50 else GREEN)
+            vals = [str(row.get("name", "")), str(row.get("region", "")), str(row.get("plan_tier", "")),
+                    f"${float(row.get('mrr_usd', 0)):,.0f}", f"{util:.0f}%",
+                    str(row.get("status", "")).replace("_", " ").title()]
+            for vi, (val, lft, ww) in enumerate(zip(vals, lefts, col_w)):
+                _txt(slide, val, lft + Inches(0.08), row_top + Inches(0.1), ww, row_h,
+                     size=10, color=uc if vi == 4 else WHITE)
+
+    _cohort_slide("⬆ Upsell Candidates",
+                  "Over-utilized (>100%) with positive utilization growth in last 3 months",
+                  upsell_df, GREEN)
+    _cohort_slide("⚠ Churn Risk",
+                  "Under-utilized (<50%) with declining MoM trend — at risk of downsizing or leaving",
+                  churn_df, YELLOW)
+    _cohort_slide("💸 MRR at Risk",
+                  "Over-utilized accounts flagged as at_risk — may downgrade if not actioned",
+                  risk_df, RED)
 
     buf = io.BytesIO()
     prs.save(buf)

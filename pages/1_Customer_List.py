@@ -144,3 +144,20 @@ if event and event.selection.rows:
     selected = df.iloc[event.selection.rows[0]]
     st.session_state["selected_customer_id"] = selected["customer_id"]
     st.success(f"Selected **{selected['name']}** — open **Customer 360** in the sidebar.")
+
+# ── Export ────────────────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("📊 Export to Google Slides")
+st.caption("Download a .pptx → upload to Google Drive → opens as Google Slides automatically.")
+if st.button("⬇ Download Customer List deck"):
+    from lib.export_pptx import customer_list_deck
+    summary = {
+        "total":   len(df),
+        "active":  len(df[df["status"] == "active"]),
+        "at_risk": len(df[df["status"] == "at_risk"]),
+        "churned": len(df[df["status"] == "churned"]),
+    }
+    pptx_bytes = customer_list_deck(df, summary)
+    st.download_button("📥 Save .pptx", data=pptx_bytes,
+                       file_name="customer_list.pptx",
+                       mime="application/vnd.openxmlformats-officedocument.presentationml.presentation")

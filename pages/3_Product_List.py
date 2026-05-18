@@ -59,3 +59,14 @@ for tab, (_, p) in zip(tabs, adoption.iterrows()):
                     columns={"name": "Customer", "region": "Region", "plan_tier": "Plan",
                              "mrr_usd": "MRR", "utilization_pct": "Util %"}
                 ), width="stretch", hide_index=True)
+
+# ── Export ────────────────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("📊 Export to Google Slides")
+st.caption("Download a .pptx → upload to Google Drive → opens as Google Slides automatically.")
+if st.button("⬇ Download Product List deck"):
+    from lib.export_pptx import product_list_deck
+    pptx_bytes = product_list_deck(table)
+    st.download_button("📥 Save .pptx", data=pptx_bytes,
+                       file_name="product_list.pptx",
+                       mime="application/vnd.openxmlformats-officedocument.presentationml.presentation")

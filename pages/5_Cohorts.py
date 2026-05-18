@@ -64,3 +64,17 @@ with t3:
     if not df.empty:
         st.metric("MRR at stake", f"${df['mrr_usd'].sum():,.0f}")
     st.dataframe(_format(df), width="stretch", hide_index=True, height=420)
+
+# ── Export ────────────────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("📊 Export to Google Slides")
+st.caption("Download a .pptx → upload to Google Drive → opens as Google Slides automatically.")
+if st.button("⬇ Download Cohorts deck"):
+    from lib.export_pptx import cohorts_deck
+    upsell_df = metrics.cohort_upsell(customers, usage)
+    churn_df  = metrics.cohort_churn_risk(customers, usage)
+    risk_df   = metrics.cohort_mrr_at_risk(customers, usage)
+    pptx_bytes = cohorts_deck(upsell_df, churn_df, risk_df)
+    st.download_button("📥 Save .pptx", data=pptx_bytes,
+                       file_name="customer_cohorts.pptx",
+                       mime="application/vnd.openxmlformats-officedocument.presentationml.presentation")
