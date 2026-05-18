@@ -4,7 +4,7 @@
 
 A self-service analytics platform that unifies product usage, customer segmentation, and monetization intelligence — so sales, product, and customer-success teams can answer their own questions without waiting on the analytics team.
 
-Built as a portfolio recreation of a platform I built at Cloudflare, where it helped identify **2,000+ over-utilization customers** and contributed to **$1.4M MRR recovery**.
+Built as a portfolio recreation of a platform I built at Cloudflare, where it helped identify **2,000+ over-utilization customers** and contributed to **$3M+ MRR recovery** across core products.
 
 ---
 
