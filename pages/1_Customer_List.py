@@ -20,14 +20,6 @@ st.title("👥 Customer List")
 # ── Custom CSS for cleaner filter chips ───────────────────────────────────────
 st.markdown("""
 <style>
-/* Filter container card */
-.filter-card {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 1rem 1.25rem 0.75rem;
-    margin-bottom: 1.25rem;
-}
 .filter-label {
     font-size: 0.7rem;
     font-weight: 700;
@@ -55,32 +47,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Filters ───────────────────────────────────────────────────────────────────
-with st.container():
-    st.markdown('<div class="filter-card">', unsafe_allow_html=True)
-    f1, f2, f3 = st.columns(3)
+f1, f2, f3 = st.columns(3)
 
-    with f1:
-        st.markdown('<div class="filter-label">Region</div>', unsafe_allow_html=True)
-        sel_region = st.multiselect(
-            "Region", sorted(customers["region"].unique()),
-            default=sorted(customers["region"].unique()),
-            label_visibility="collapsed"
-        )
-    with f2:
-        st.markdown('<div class="filter-label">Plan Tier</div>', unsafe_allow_html=True)
-        sel_tier = st.multiselect(
-            "Plan tier", sorted(customers["plan_tier"].unique()),
-            default=sorted(customers["plan_tier"].unique()),
-            label_visibility="collapsed"
-        )
-    with f3:
-        st.markdown('<div class="filter-label">Status</div>', unsafe_allow_html=True)
-        sel_status = st.multiselect(
-            "Status", sorted(customers["status"].unique()),
-            default=sorted(customers["status"].unique()),
-            label_visibility="collapsed"
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+with f1:
+    st.markdown('<div class="filter-label">Region</div>', unsafe_allow_html=True)
+    sel_region = st.multiselect(
+        "Region", sorted(customers["region"].unique()),
+        default=sorted(customers["region"].unique()),
+        label_visibility="collapsed"
+    )
+with f2:
+    st.markdown('<div class="filter-label">Plan Tier</div>', unsafe_allow_html=True)
+    sel_tier = st.multiselect(
+        "Plan tier", sorted(customers["plan_tier"].unique()),
+        default=sorted(customers["plan_tier"].unique()),
+        label_visibility="collapsed"
+    )
+with f3:
+    st.markdown('<div class="filter-label">Status</div>', unsafe_allow_html=True)
+    sel_status = st.multiselect(
+        "Status", sorted(customers["status"].unique()),
+        default=sorted(customers["status"].unique()),
+        label_visibility="collapsed"
+    )
 
 # ── Filter data ───────────────────────────────────────────────────────────────
 df = customers[
