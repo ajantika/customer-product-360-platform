@@ -1,4 +1,4 @@
-"""Customer List — rich table with utilization, MRR impact, contract end, acquisition channel."""
+"""Customer List — filterable table with utilization, MRR impact, acquisition channel."""
 import pandas as pd
 import streamlit as st
 
@@ -17,22 +17,77 @@ if "contract_end_date" not in customers.columns:
 
 st.title("👥 Customer List")
 
-f1, f2, f3, f4 = st.columns([1, 1, 1, 2])
-sel_region = f1.multiselect("Region",    sorted(customers["region"].unique()),    default=sorted(customers["region"].unique()))
-sel_tier   = f2.multiselect("Plan tier", sorted(customers["plan_tier"].unique()), default=sorted(customers["plan_tier"].unique()))
-sel_status = f3.multiselect("Status",    sorted(customers["status"].unique()),    default=sorted(customers["status"].unique()))
-search     = f4.text_input("Search by name or campaign", "")
+# ── Custom CSS for cleaner filter chips ───────────────────────────────────────
+st.markdown("""
+<style>
+/* Filter container card */
+.filter-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 1rem 1.25rem 0.75rem;
+    margin-bottom: 1.25rem;
+}
+.filter-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    margin-bottom: 0.4rem;
+}
+/* Override multiselect tag colors to indigo instead of red */
+[data-baseweb="tag"] {
+    background-color: rgba(99,102,241,0.25) !important;
+    border: 1px solid rgba(99,102,241,0.4) !important;
+    color: #a5b4fc !important;
+    border-radius: 6px !important;
+}
+[data-baseweb="tag"] span { color: #a5b4fc !important; }
+[data-baseweb="tag"] button svg { fill: #a5b4fc !important; }
+/* Multiselect input box */
+[data-baseweb="select"] > div {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.12) !important;
+    border-radius: 8px !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
+# ── Filters ───────────────────────────────────────────────────────────────────
+with st.container():
+    st.markdown('<div class="filter-card">', unsafe_allow_html=True)
+    f1, f2, f3 = st.columns(3)
+
+    with f1:
+        st.markdown('<div class="filter-label">Region</div>', unsafe_allow_html=True)
+        sel_region = st.multiselect(
+            "Region", sorted(customers["region"].unique()),
+            default=sorted(customers["region"].unique()),
+            label_visibility="collapsed"
+        )
+    with f2:
+        st.markdown('<div class="filter-label">Plan Tier</div>', unsafe_allow_html=True)
+        sel_tier = st.multiselect(
+            "Plan tier", sorted(customers["plan_tier"].unique()),
+            default=sorted(customers["plan_tier"].unique()),
+            label_visibility="collapsed"
+        )
+    with f3:
+        st.markdown('<div class="filter-label">Status</div>', unsafe_allow_html=True)
+        sel_status = st.multiselect(
+            "Status", sorted(customers["status"].unique()),
+            default=sorted(customers["status"].unique()),
+            label_visibility="collapsed"
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ── Filter data ───────────────────────────────────────────────────────────────
 df = customers[
     customers["region"].isin(sel_region) &
     customers["plan_tier"].isin(sel_tier) &
     customers["status"].isin(sel_status)
 ]
-if search:
-    df = df[
-        df["name"].str.contains(search, case=False, na=False) |
-        df["marketing_campaign"].str.contains(search, case=False, na=False)
-    ]
 
 # Enrich with latest utilization
 last_util = metrics.latest_utilization_per_sub(usage)
@@ -51,7 +106,7 @@ df["mrr_impact"]   = df.apply(
     else (round(-r["mrr_usd"] * (50 - r["avg_util"]) / 100, 0) if r["avg_util"] < 50 else 0.0), axis=1
 )
 
-# Summary tiles
+# ── Summary tiles ─────────────────────────────────────────────────────────────
 t1, t2, t3, t4 = st.columns(4)
 t1.metric("Customers shown", f"{len(df):,}")
 t2.metric("Active",  f"{len(df[df['status']=='active']):,}")
@@ -61,6 +116,7 @@ t4.metric("Churned", f"{len(df[df['status']=='churned']):,}")
 st.markdown("---")
 st.caption("Click a row → then open **Customer 360** in the sidebar to drill in")
 
+# ── Table ─────────────────────────────────────────────────────────────────────
 display = df[[
     "customer_id", "name", "region", "country", "industry", "plan_tier",
     "mrr_usd", "avg_util", "usage_status", "mrr_impact",
