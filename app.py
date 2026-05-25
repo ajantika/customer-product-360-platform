@@ -1,8 +1,23 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from lib import theme
 
 st.set_page_config(page_title="Customer & Product 360", page_icon="🌐", layout="wide")
 theme.apply()
+
+# Google Analytics 4 tracking
+GA_ID = "G-F5KY3NFBCY"  # Customer 360
+if "ga_loaded" not in st.session_state:
+    st.session_state.ga_loaded = True
+    components.html(f"""
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){{dataLayer.push(arguments);}}
+      gtag('js', new Date());
+      gtag('config', '{GA_ID}');
+    </script>
+    """, height=0)
 
 st.sidebar.markdown(
     """
