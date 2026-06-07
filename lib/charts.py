@@ -43,14 +43,17 @@ def bar_mom(df: pd.DataFrame, title: str = "Month-over-month usage (% of plan)")
 
 
 def regional_bar(df: pd.DataFrame, value_col: str, title: str) -> go.Figure:
+    is_mrr = value_col != "adoption_pct"
     fig = go.Figure(go.Bar(
         x=df["region"],
         y=df[value_col],
         marker_color=PRIMARY,
-        text=[f"{v:,.0f}" if value_col != "adoption_pct" else f"{v:.0f}%" for v in df[value_col]],
+        text=[f"${v:,.0f}" if is_mrr else f"{v:.0f}%" for v in df[value_col]],
         textposition="outside",
     ))
     fig.update_layout(title=title, xaxis_title=None, yaxis_title=None)
+    if is_mrr:
+        fig.update_yaxes(tickprefix="$", tickformat=",")
     return _style(fig, height=300)
 
 
